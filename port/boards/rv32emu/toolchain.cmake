@@ -2,7 +2,7 @@ set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR riscv)
 
 if(NOT DEFINED CROSS_COMPILE)
-    set(CROSS_COMPILE "riscv-none-elf-")
+    set(CROSS_COMPILE "riscv64-unknown-elf-")
 endif()
 
 set(TOOLCHAIN_PREFIX ${CROSS_COMPILE})
