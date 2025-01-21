@@ -264,158 +264,172 @@ D_DrawSpans8
 Note: This function is the top CPU consumer. Optimize it as far as possible!
 =============
 */
-void D_DrawSpans8 (espan_t *pspan)
+void D_DrawSpans8(espan_t *pspan)
 {
-	int		count, spancount;
-	unsigned char	*pbase, *pdest;
-	fixed16_t	s, t, snext, tnext, sstep = 0, tstep = 0;
-	float		sdivz, tdivz, zi, z, du, dv, spancountminus1;
+  int count, spancount;
+  unsigned char *pbase, *pdest, is_pdest_align;
+  unsigned tmp;
+  fixed16_t s, t, snext, tnext, sstep = 0, tstep = 0;
+  float sdivz, tdivz, zi, z, du, dv, spancountminus1;
 
-	pbase = (unsigned char *)cacheblock;
+  pbase = (unsigned char *)cacheblock;
 
-	byte *viewbuffer = (byte *)d_viewbuffer;
-	int _screenwidth = screenwidth;
-	float _d_sdivzorigin = d_sdivzorigin;
-	float _d_sdivzstepv = d_sdivzstepv;
-	float _d_sdivzstepu = d_sdivzstepu;
-	float _d_tdivzorigin = d_tdivzorigin;
-	float _d_tdivzstepv = d_tdivzstepv;
-	float _d_tdivzstepu = d_tdivzstepu;
-	float _d_ziorigin = d_ziorigin;
-	float _d_zistepv = d_zistepv;
-	float _d_zistepu = d_zistepu;
-	fixed16_t _sadjust = sadjust;
-	fixed16_t _tadjust = tadjust;
-	fixed16_t _bbextents = bbextents;
-	fixed16_t _bbextentt = bbextentt;
-	int _cachewidth = cachewidth;
+  byte *viewbuffer = (byte *)d_viewbuffer;
+  int _screenwidth = screenwidth;
+  float _d_sdivzorigin = d_sdivzorigin;
+  float _d_sdivzstepv = d_sdivzstepv;
+  float _d_sdivzstepu = d_sdivzstepu;
+  float _d_tdivzorigin = d_tdivzorigin;
+  float _d_tdivzstepv = d_tdivzstepv;
+  float _d_tdivzstepu = d_tdivzstepu;
+  float _d_ziorigin = d_ziorigin;
+  float _d_zistepv = d_zistepv;
+  float _d_zistepu = d_zistepu;
+  fixed16_t _sadjust = sadjust;
+  fixed16_t _tadjust = tadjust;
+  fixed16_t _bbextents = bbextents;
+  fixed16_t _bbextentt = bbextentt;
+  int _cachewidth = cachewidth;
 
-	float sdivzstepu = _d_sdivzstepu * 16;
-	float tdivzstepu = _d_tdivzstepu * 16;
-	float zistepu = _d_zistepu * 16;
+  float sdivzstepu = _d_sdivzstepu * 16;
+  float tdivzstepu = _d_tdivzstepu * 16;
+  float zistepu = _d_zistepu * 16;
 
-	do
-	{
-		pdest = (unsigned char *)&viewbuffer[(_screenwidth * pspan->v) + pspan->u];
-		count = pspan->count >> 4;
-		spancount = pspan->count % 16;
+  do
+  {
+    pdest = (unsigned char *)&viewbuffer[(_screenwidth * pspan->v) + pspan->u];
+    is_pdest_align = !((uintptr_t)pdest & 0x3);
+    count = pspan->count >> 4;
+    spancount = pspan->count & 0xF;
 
-		// calculate the initial s/z, t/z, 1/z, s, and t and clamp
-		du = (float)pspan->u;
-		dv = (float)pspan->v;
+    // calculate the initial s/z, t/z, 1/z, s, and t and clamp
+    du = (float)pspan->u;
+    dv = (float)pspan->v;
 
-		sdivz = _d_sdivzorigin + dv*_d_sdivzstepv + du*_d_sdivzstepu;
-		tdivz = _d_tdivzorigin + dv*_d_tdivzstepv + du*_d_tdivzstepu;
-		zi = _d_ziorigin + dv*_d_zistepv + du*_d_zistepu;
-		z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
+    sdivz = _d_sdivzorigin + dv * _d_sdivzstepv + du * _d_sdivzstepu;
+    tdivz = _d_tdivzorigin + dv * _d_tdivzstepv + du * _d_tdivzstepu;
+    zi = _d_ziorigin + dv * _d_zistepv + du * _d_zistepu;
+    z = (float)0x10000 / zi; // prescale to 16.16 fixed-point
 
-		// prevent round-off error on <0 steps from causing overstepping
-		// and running off the edge of the texture.
-		s = bound(0, (int) (sdivz * z) + _sadjust, _bbextents);
-		t = bound(0, (int) (tdivz * z) + _tadjust, _bbextentt);
+    // prevent round-off error on <0 steps from causing overstepping
+    // and running off the edge of the texture.
+    s = bound(0, (int)(sdivz * z) + _sadjust, _bbextents);
+    t = bound(0, (int)(tdivz * z) + _tadjust, _bbextentt);
 
-		while (count-- > 0)
-		{
-			// calculate s/z, t/z, zi->fixed s and t at far end of span,
-			// calculate s and t steps across span by shifting
-			sdivz += sdivzstepu;
-			tdivz += tdivzstepu;
-			zi += zistepu;
-			z = (float)0x10000 / zi;   // prescale to 16.16 fixed-point
+    while (count-- > 0)
+    {
+      // calculate s/z, t/z, zi->fixed s and t at far end of span,
+      // calculate s and t steps across span by shifting
+      sdivz += sdivzstepu;
+      tdivz += tdivzstepu;
+      zi += zistepu;
+      z = (float)0x10000 / zi; // prescale to 16.16 fixed-point
 
-			snext = bound(16, (int) (sdivz * z) + _sadjust, _bbextents);
-			tnext = bound(16, (int) (tdivz * z) + _tadjust, _bbextentt);
+      snext = bound(16, (int)(sdivz * z) + _sadjust, _bbextents);
+      tnext = bound(16, (int)(tdivz * z) + _tadjust, _bbextentt);
 
-			sstep = (snext - s) >> 4;
-			tstep = (tnext - t) >> 4;
-			pdest += 16;
+      sstep = (snext - s) >> 4;
+      tstep = (tnext - t) >> 4;
+      pdest += 16;
 
-#define WRITEPDEST(i) \
-	{ pdest[i] = *(pbase + (s >> 16) + (t >> 16) * _cachewidth); s += sstep; t += tstep; }
+#define WRITEPDEST(i)                                          \
+  {                                                            \
+    pdest[i] = *(pbase + (s >> 16) + (t >> 16) * _cachewidth); \
+    s += sstep;                                                \
+    t += tstep;                                                \
+  }
 
-			WRITEPDEST(-16);
-			WRITEPDEST(-15);
-			WRITEPDEST(-14);
-			WRITEPDEST(-13);
-			WRITEPDEST(-12);
-			WRITEPDEST(-11);
-			WRITEPDEST(-10);
-			WRITEPDEST(-9);
-			WRITEPDEST(-8);
-			WRITEPDEST(-7);
-			WRITEPDEST(-6);
-			WRITEPDEST(-5);
-			WRITEPDEST(-4);
-			WRITEPDEST(-3);
-			WRITEPDEST(-2);
-			WRITEPDEST(-1);
+#define LOW_WRITEPDEST(i)                                                     \
+  {                                                                           \
+    pdest[i] = pdest[i + 1] = *(pbase + (s >> 16) + (t >> 16) * _cachewidth); \
+    s += sstep << 1;                                                          \
+    t += tstep << 1;                                                          \
+  }
 
-			s = snext;
-			t = tnext;
-		}
+#define LOW_WRITEPDEST_ALIGN(i)                                            \
+  {                                                                        \
+    tmp = (unsigned)*(pbase + (s >> 16) + (t >> 16) * _cachewidth);        \
+    s += sstep << 1;                                                       \
+    t += tstep << 1;                                                       \
+    tmp |= (unsigned)*(pbase + (s >> 16) + (t >> 16) * _cachewidth) << 16; \
+    s += sstep << 1;                                                       \
+    t += tstep << 1;                                                       \
+    tmp |= tmp << 8;                                                       \
+    *(uintptr_t *)(pdest + i) = tmp;                                       \
+  }
 
-		// calculate s/z, t/z, zi->fixed s and t at last pixel in span (so
-		// can't step off polygon), clamp, calculate s and t steps across
-		// span by division, biasing steps low so we don't run off the
-		// texture
-		if (spancount > 0)
-		{
-			spancountminus1 = (float)(spancount - 1);
-			sdivz += d_sdivzstepu * spancountminus1;
-			tdivz += d_tdivzstepu * spancountminus1;
-			zi += d_zistepu * spancountminus1;
-			z = (float)0x10000 / zi;   // prescale to 16.16 fixed-point
+      is_pdest_align = !((uintptr_t)pdest & 0x3);
+      if (is_pdest_align)
+      {
+        LOW_WRITEPDEST_ALIGN(-16);
+        LOW_WRITEPDEST_ALIGN(-12);
+        LOW_WRITEPDEST_ALIGN(-8);
+        LOW_WRITEPDEST_ALIGN(-4);
+      }
+      else
+      {
+        LOW_WRITEPDEST(-16);
+        LOW_WRITEPDEST(-14);
+        LOW_WRITEPDEST(-12);
+        LOW_WRITEPDEST(-10);
+        LOW_WRITEPDEST(-8);
+        LOW_WRITEPDEST(-6);
+        LOW_WRITEPDEST(-4);
+        LOW_WRITEPDEST(-2);
+      }
 
-			snext = bound(16, (int)(sdivz * z) + sadjust, bbextents);
-			tnext = bound(16, (int)(tdivz * z) + tadjust, bbextentt);
+      s = snext;
+      t = tnext;
+    }
 
-			if (spancount > 1)
-			{
-				sstep = (snext - s) / (spancount - 1);
-				tstep = (tnext - t) / (spancount - 1);
-			}
+    // calculate s/z, t/z, zi->fixed s and t at last pixel in span (so
+    // can't step off polygon), clamp, calculate s and t steps across
+    // span by division, biasing steps low so we don't run off the
+    // texture
+    if (spancount > 0)
+    {
+      spancountminus1 = (float)(spancount - 1);
+      sdivz += d_sdivzstepu * spancountminus1;
+      tdivz += d_tdivzstepu * spancountminus1;
+      zi += d_zistepu * spancountminus1;
+      z = (float)0x10000 / zi; // prescale to 16.16 fixed-point
 
-			pdest += spancount;
+      snext = bound(16, (int)(sdivz * z) + sadjust, bbextents);
+      tnext = bound(16, (int)(tdivz * z) + tadjust, bbextentt);
 
-			switch (spancount)
-			{
-			case 16:
-				WRITEPDEST(-16);
-			case 15:
-				WRITEPDEST(-15);
-			case 14:
-				WRITEPDEST(-14);
-			case 13:
-				WRITEPDEST(-13);
-			case 12:
-				WRITEPDEST(-12);
-			case 11:
-				WRITEPDEST(-11);
-			case 10:
-				WRITEPDEST(-10);
-			case  9:
-				WRITEPDEST(-9);
-			case  8:
-				WRITEPDEST(-8);
-			case  7:
-				WRITEPDEST(-7);
-			case  6:
-				WRITEPDEST(-6);
-			case  5:
-				WRITEPDEST(-5);
-			case  4:
-				WRITEPDEST(-4);
-			case  3:
-				WRITEPDEST(-3);
-			case  2:
-				WRITEPDEST(-2);
-			case  1:
-				WRITEPDEST(-1);
-				break;
-			}
-		}
-	}
-	while ((pspan = pspan->pnext));
+      if (spancount > 1)
+      {
+        sstep = (snext - s) / (spancount - 1);
+        tstep = (tnext - t) / (spancount - 1);
+      }
+
+      pdest += spancount;
+
+      if (spancount & 0x1)
+      {
+        WRITEPDEST(-spancount);
+        spancount--;
+      }
+      switch (spancount)
+      {
+      case 14:
+        LOW_WRITEPDEST(-14);
+      case 12:
+        LOW_WRITEPDEST(-12);
+      case 10:
+        LOW_WRITEPDEST(-10);
+      case 8:
+        LOW_WRITEPDEST(-8);
+      case 6:
+        LOW_WRITEPDEST(-6);
+      case 4:
+        LOW_WRITEPDEST(-4);
+      case 2:
+        LOW_WRITEPDEST(-2);
+        break;
+      }
+    }
+  } while ((pspan = pspan->pnext));
 }
 
 /*
