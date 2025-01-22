@@ -269,7 +269,7 @@ void D_DrawSpans8(espan_t *pspan)
   int count, spancount;
   unsigned char *pbase, *pdest, is_pdest_align;
   unsigned tmp;
-  fixed16_t s, t, snext, tnext, sstep = 0, tstep = 0;
+  fixed16_t s, t, snext, tnext, sstep = 0, tstep = 0, sstep2 = 0, tstep2 = 0;
   float sdivz, tdivz, zi, z, du, dv, spancountminus1;
 
   pbase = (unsigned char *)cacheblock;
@@ -329,7 +329,9 @@ void D_DrawSpans8(espan_t *pspan)
       tnext = bound(16, (int)(tdivz * z) + _tadjust, _bbextentt);
 
       sstep = (snext - s) >> 4;
+      sstep2 = sstep << 1;
       tstep = (tnext - t) >> 4;
+      tstep2 = tstep << 1;
       pdest += 16;
 
 #define WRITEPDEST(i)                                          \
@@ -339,25 +341,25 @@ void D_DrawSpans8(espan_t *pspan)
     t += tstep;                                                \
   }
 
-#define LOW_WRITEPDEST(i)                                                     \
-  {                                                                           \
-    pdest[i] = pdest[i + 1] = *(pbase + (s >> 16) + (t >> 16) * _cachewidth); \
-    s += sstep << 1;                                                          \
-    t += tstep << 1;                                                          \
+#define LOW_WRITEPDEST(i)                                                    \
+  {                                                                          \
+    pdest[i] = pdest[i+1]  = *(pbase + (s >> 16) + (t >> 16) * _cachewidth); \
+    s += sstep2;                                                            \
+    t += tstep2;                                                            \
   }
 
 #define LOW_WRITEPDEST_ALIGN(i)                                            \
   {                                                                        \
     tmp = (unsigned)*(pbase + (s >> 16) + (t >> 16) * _cachewidth);        \
-    s += sstep << 1;                                                       \
-    t += tstep << 1;                                                       \
+    s += sstep2;                                                           \
+    t += tstep2;                                                           \
     tmp |= (unsigned)*(pbase + (s >> 16) + (t >> 16) * _cachewidth) << 16; \
-    s += sstep << 1;                                                       \
-    t += tstep << 1;                                                       \
+    s += sstep2;                                                           \
+    t += tstep2;                                                           \
     tmp |= tmp << 8;                                                       \
     *(uintptr_t *)(pdest + i) = tmp;                                       \
   }
-
+      
       is_pdest_align = !((uintptr_t)pdest & 0x3);
       if (is_pdest_align)
       {
@@ -401,6 +403,8 @@ void D_DrawSpans8(espan_t *pspan)
       {
         sstep = (snext - s) / (spancount - 1);
         tstep = (tnext - t) / (spancount - 1);
+        sstep2 = sstep << 1;
+        tstep2 = tstep << 1;
       }
 
       pdest += spancount;
