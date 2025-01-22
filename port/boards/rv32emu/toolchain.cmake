@@ -14,7 +14,7 @@ set(CMAKE_ASM_COMPILER ${TOOLCHAIN_PREFIX}gcc)
 set(CMAKE_OBJCOPY ${TOOLCHAIN_PREFIX}objcopy)
 set(CMAKE_SIZE ${TOOLCHAIN_PREFIX}size)
 
-set(ARCH_FLAGS "-march=rv32imf -mabi=ilp32 -Ofast -flto")
+set(ARCH_FLAGS "-march=rv32imfzba_zbb_zbc_zbs -mabi=ilp32 -Ofast -flto")
 
 set(CMAKE_C_FLAGS "${ARCH_FLAGS} -std=gnu11 -Wall -ffunction-sections -fdata-sections -Wdouble-promotion")
 set(CMAKE_ASM_FLAGS "${ARCH_FLAGS} -x assembler-with-cpp")
